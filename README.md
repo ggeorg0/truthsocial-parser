@@ -3,7 +3,7 @@
 The TruthSocial Parser is a Python tool designed to scrape data from TruthSocial.
 
 The project leverages:
-- Nodriver: For browser automation without a graphical interface.
+- Nodriver: For browser automation without anti-bot detection.
 - Asyncpg: To interact asynchronously with a PostgreSQL database.
 - PyQuery: For lightweight HTML parsing and manipulation.
 
@@ -12,6 +12,7 @@ The project leverages:
 
 ### TODO:
 - [ ] Beautify this Readme
+- [ ] Add `requirements.txt`
 - [ ] Code:
     - [ ] Split `parser.py` by separate files `Parser` and `UserParser`.
-    - Add continue method to continue from last parsed user.
+    - [ ] Add continue method to continue from last parsed user.
