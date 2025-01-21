@@ -7,6 +7,9 @@ The project leverages:
 - Asyncpg: To interact asynchronously with a PostgreSQL database.
 - PyQuery: For lightweight HTML parsing and manipulation.
 
+![image](https://github.com/user-attachments/assets/464f71fb-3c42-407a-b95e-80fad03fe865)
+
+
 ### TODO:
 - [ ] Beautify this Readme
 - [ ] Code:
