@@ -42,6 +42,7 @@ class Parser:
     _dsn: str
     _db_pool_size: int
     _users_queue: deque[str]
+    _seen_usenames: set[str]
     _iterations: int
 
     def __init__(
@@ -66,6 +67,7 @@ class Parser:
         self._followers_per_user = followers_per_user
         self._following_per_user = following_per_user
         self._users_queue = deque()
+        self._seen_usenames = set()
         self._iterations = 0
 
     async def create_browser(self):
@@ -73,38 +75,36 @@ class Parser:
             browser_args=[f"--proxy-server={self._proxy}"],
         )
 
-    async def run(self, initial_username: str, max_iterations=100):
+    async def parsing_loop(self, initial_username: str, max_iterations=100):
         await self.create_browser()
         await self.sign_in()
 
         async with Database(self._dsn, self._db_pool_size) as db:
             self._users_queue.append(initial_username)
             while self._iterations < max_iterations and self._users_queue:
-                next_username = self._users_queue.pop()
-                user_parser = UserParser(
-                    self.browser,
-                    next_username,
-                    db,
-                )
-                logging.info(f"Parsing user @{next_username}")
+                uname = self._users_queue.pop()
+                user_parser = UserParser(self.browser, uname, db)
+                logging.info(f"Parsing user @{uname}")
                 try:
-                    await db.mark_user_parsing_now(next_username)
+                    await db.mark_user_parsing_now(uname)
                     await user_parser.parse()
-                    await db.mark_user_parsed(next_username)
+                    await db.mark_user_parsed(uname)
                 except Exception:
-                    await db.mark_user_error(next_username)
+                    await db.mark_user_error(uname)
                     logging.error(traceback.format_exc())
-                    logging.error(f"Failed to parse user @{next_username}")
+                    logging.error(f"Failed to parse user @{uname}")
                 try:
                     if not self._users_queue:
-                        for user in await db.get_bunch_of_users():
-                            print("adding user to queue", user[0])
-                            self._users_queue.append(user[0])
+                        for un in await db.get_bunch_of_usernames():
+                            if un not in self._seen_usenames:
+                                logging.info(f"adding user to queue @{un}")
+                                self._users_queue.append(un)
                     else:
-                        logging.info(f'queue length: {len(self._users_queue)}')
+                        logging.info(f"queue length: {len(self._users_queue)}")
                 except Exception:
                     logging.error(traceback.format_exc())
                     logging.info("Cannot add new users to queue")
+                self._seen_usenames.add(uname)
                 self._iterations += 1
         logging.info("Parsing finished!")
 
@@ -150,8 +150,8 @@ class UserParser:
         browser: uc.Browser,
         username: str,
         database: Database,
-        max_posts: int = 30,
-        max_replies: int = 30,
+        max_posts: int = 35,
+        max_replies: int = 35,
         max_followers=50,
         max_following=50,
     ):
@@ -211,8 +211,6 @@ class UserParser:
             )
         finally:
             await tab.close()
-
-        print('int download')
 
         for p in posts:
             logging.info(f"saving post {p}")
@@ -370,4 +368,6 @@ if __name__ == "__main__":
         followers_per_user=50,
         following_per_user=50,
     )
-    uc.loop().run_until_complete(parser.run(INTIAL_USERNAME, max_iterations=500))
+    uc.loop().run_until_complete(
+        parser.parsing_loop(INTIAL_USERNAME, max_iterations=500)
+    )

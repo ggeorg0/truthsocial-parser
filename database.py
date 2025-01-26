@@ -192,9 +192,11 @@ class Database:
         except (asyncpg.PostgresError, asyncpg.InterfaceError):
             logging.error(f"Cannot mark user as {status}")
 
-    async def get_bunch_of_users(self, start_from_id: int = 1, limit: int = 10):
+    async def get_bunch_of_usernames(
+        self, start_from_id: int = 1, limit: int = 10
+    ) -> list[str]:
         async with self._pool.acquire() as conn:
-            return await conn.fetch(
+            fetched_rows = await conn.fetch(
                 """
                 SELECT username FROM users
                 WHERE
@@ -206,3 +208,4 @@ class Database:
                 start_from_id,
                 limit,
             )
+            return [row[0] for row in fetched_rows]
